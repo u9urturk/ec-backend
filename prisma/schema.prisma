@@ -1,0 +1,128 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique
+  passwordHash String
+  phone        String?
+  createdAt    DateTime      @default(now())
+  orders       Order[]
+  profile      UserProfile?
+  addresses    Address[]
+}
+
+model UserProfile {
+  id            String   @id @default(uuid()) @db.Uuid
+  userId        String   @unique @db.Uuid
+  firstName     String?
+  lastName      String?
+  avatarUrl     String?
+  bio           String?
+  favoriteIds   String[] @default([]) // product UUID list
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Address {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  title     String   // Ev, İş, vb.
+  fullName  String
+  phone     String
+  city      String
+  district  String
+  address1  String
+  address2  String?
+  zipCode   String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders    Order[]
+}
+
+model ProductCategory {
+  id        String     @id @default(uuid()) @db.Uuid
+  name      String
+  parentId  String?    @db.Uuid
+  parent    ProductCategory? @relation("CategoryParent", fields: [parentId], references: [id])
+  children  ProductCategory[] @relation("CategoryParent")
+  products  Product[]
+  campaignCategories CampaignCategory[]
+  createdAt DateTime @default(now())
+}
+
+model Product {
+  id              String          @id @default(uuid()) @db.Uuid
+  name            String
+  description     String?
+  price           Decimal         @db.Decimal(10,2)
+  stock           Int
+  categoryId      String?         @db.Uuid
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  category        ProductCategory? @relation(fields: [categoryId], references: [id])
+  orderItems      OrderItem[]
+  campaignProducts CampaignProduct[]
+}
+
+model Order {
+  id         String      @id @default(uuid()) @db.Uuid
+  userId     String      @db.Uuid
+  addressId  String      @db.Uuid
+  totalPrice Decimal     @db.Decimal(10,2)
+  status     String      @default("pending") // pending, paid, shipped, completed
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  user       User        @relation(fields: [userId], references: [id])
+  address    Address     @relation(fields: [addressId], references: [id])
+  items      OrderItem[]
+}
+
+model OrderItem {
+  id          String   @id @default(uuid()) @db.Uuid
+  orderId     String   @db.Uuid
+  productId   String   @db.Uuid
+  quantity    Int
+  unitPrice   Decimal  @db.Decimal(10,2)
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+}
+
+
+
+model Campaign {
+  id            String           @id @default(uuid()) @db.Uuid
+  name          String
+  type          String           // percentage, fixed, new_price, etc.
+  value         Decimal?         @db.Decimal(10,2)  // indirim oranı veya indirim miktarı
+  startDate     DateTime
+  endDate       DateTime
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  products      CampaignProduct[]
+  categories    CampaignCategory[]
+}
+
+model CampaignProduct {
+  id         String   @id @default(uuid()) @db.Uuid
+  campaignId String   @db.Uuid
+  productId  String   @db.Uuid
+  
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model CampaignCategory {
+  id          String   @id @default(uuid()) @db.Uuid
+  campaignId  String   @db.Uuid
+  categoryId  String   @db.Uuid
+
+  campaign    Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  category    ProductCategory  @relation(fields: [categoryId], references: [id])
+}
